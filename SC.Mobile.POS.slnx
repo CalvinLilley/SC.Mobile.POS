@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="SC.Mobile.POS.App/SC.Mobile.POS.App.csproj" Id="46b9ec7f-d490-4099-b35c-6a0d2085d2ed">
+    <Deploy Solution="Debug|*" />
+  </Project>
+  <Project Path="SC.Mobile.POS.Core/SC.Mobile.POS.Core.csproj" Id="4291fbf0-76de-4457-86b4-a0ccac71de40" />
+  <Project Path="SC.Mobile.POS.Data/SC.Mobile.POS.Data.csproj" Id="4e33aa71-a5ce-48d7-812d-3987d4b19c5b" />
+</Solution>
