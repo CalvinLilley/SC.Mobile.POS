@@ -59,7 +59,7 @@
 
     @if (_customerResults.Count > 0)
     {
-        <MudList Dense="true">
+        <MudList T="string" Dense="true">
             @foreach (var item in _customerResults)
             {
                 <MudListItem OnClick="@(() => SelectCustomerAsync(item.CustomerCode))">@item.CustomerCode - @item.Name</MudListItem>
