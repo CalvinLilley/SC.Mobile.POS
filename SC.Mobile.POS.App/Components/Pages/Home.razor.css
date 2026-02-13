@@ -1,0 +1,161 @@
+.pos-shell {
+    max-width: 360px;
+    margin: 0 auto;
+    padding: 0.6rem;
+    font-family: Arial, sans-serif;
+    color: #111;
+}
+
+.menu-bar {
+    background: #2e6f1d;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.6rem;
+}
+
+.menu-button {
+    border: 0;
+    background: #3f8140;
+    color: #fff;
+    padding: 0.3rem 0.45rem;
+}
+
+.menu-title {
+    flex: 1;
+}
+
+.cart-indicator {
+    font-weight: 700;
+}
+
+.customer-strip {
+    margin-top: 0.6rem;
+    border: 1px solid #777;
+    background: #ececec;
+    padding: 0.4rem 0.6rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.customer-name {
+    font-size: 1rem;
+}
+
+.customer-code {
+    font-size: 0.8rem;
+}
+
+.switch-button {
+    border: 0;
+    background: #6fae65;
+    color: #fff;
+    padding: 0.35rem 0.6rem;
+}
+
+.payment-button {
+    margin-top: 0.6rem;
+    width: 100%;
+    border: 1px solid #496a1f;
+    background: #8bc34a;
+    padding: 0.5rem;
+    display: grid;
+}
+
+.entry-row {
+    margin-top: 0.6rem;
+    display: grid;
+    grid-template-columns: 1fr 58px auto;
+    gap: 0.3rem;
+}
+
+.entry-row input,
+.entry-row button {
+    border: 1px solid #999;
+    padding: 0.45rem;
+}
+
+.qty-input {
+    text-align: center;
+}
+
+.results-list {
+    margin-top: 0.6rem;
+    border: 1px solid #6a6a6a;
+}
+
+.result-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.3rem 0.45rem;
+    border-bottom: 1px solid #cdcdcd;
+}
+
+.result-card:last-child {
+    border-bottom: 0;
+}
+
+.result-card h3 {
+    font-size: 1.2rem;
+    margin: 0;
+}
+
+.result-card p {
+    margin: 0;
+    font-size: 0.85rem;
+}
+
+.result-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+}
+
+.result-actions button {
+    border: 0;
+    background: #4f5b6e;
+    color: #fff;
+    font-size: 1.4rem;
+    width: 1.8rem;
+    height: 1.8rem;
+    line-height: 1;
+}
+
+.sub-screen {
+    background: #fff;
+    border: 1px solid #8e8e8e;
+    padding: 0.75rem;
+}
+
+.list-stack {
+    display: grid;
+    gap: 0.45rem;
+}
+
+.list-item,
+.secondary {
+    width: 100%;
+    border: 1px solid #b2b2b2;
+    background: #f4f4f4;
+    padding: 0.55rem;
+    text-align: left;
+}
+
+.list-item {
+    display: flex;
+    justify-content: space-between;
+}
+
+.totals {
+    border: 1px solid #c7c7c7;
+    padding: 0.55rem;
+    margin-bottom: 0.75rem;
+}
+
+.totals div {
+    display: flex;
+    justify-content: space-between;
+}
