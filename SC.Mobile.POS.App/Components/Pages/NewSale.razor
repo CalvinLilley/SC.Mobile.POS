@@ -1,0 +1,291 @@
+@page "/new-sale"
+@using SC.Mobile.POS.Core.Abstractions
+@using SC.Mobile.POS.Core.Models
+@inject IBranchRepository BranchRepository
+@inject ICustomerRepository CustomerRepository
+@inject IProductRepository ProductRepository
+@inject IPriceGroupRepository PriceGroupRepository
+@inject IPricingEngine PricingEngine
+@inject ITaxEngine TaxEngine
+@inject ISnackbar Snackbar
+
+<PageTitle>New Sale</PageTitle>
+
+<MudText Typo="Typo.h4">New Sale</MudText>
+
+@if (!string.IsNullOrWhiteSpace(_error))
+{
+    <MudAlert Severity="Severity.Error" Dense="true">@_error</MudAlert>
+}
+
+<MudPaper Class="pa-4 mt-3">
+    <MudGrid>
+        <MudItem xs="12" md="4">
+            <MudTextField Label="Branch" Value="@_branchCode" ReadOnly="true" Variant="Variant.Outlined" />
+        </MudItem>
+        <MudItem xs="12" md="4">
+            <MudTextField Label="Customer" Value="@(_customer is null ? string.Empty : $"{_customer.CustomerCode} - {_customer.Name}")" ReadOnly="true" Variant="Variant.Outlined" />
+        </MudItem>
+        <MudItem xs="12" md="4">
+            <MudTextField Label="Customer Type" Value="@_customerType?.ToString()" ReadOnly="true" Variant="Variant.Outlined" />
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+<MudPaper Class="pa-4 mt-3">
+    <MudGrid>
+        <MudItem xs="12" md="8">
+            <MudTextField Label="Product Code / Barcode" @bind-Value="_scanCode" Variant="Variant.Outlined" Immediate="true" OnKeyDown="HandleScanKeyDown" />
+        </MudItem>
+        <MudItem xs="6" md="2">
+            <MudNumericField T="decimal" Label="Qty" @bind-Value="_scanQty" Min="1" Variant="Variant.Outlined" />
+        </MudItem>
+        <MudItem xs="6" md="2" Class="d-flex align-center">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="AddScannedProductAsync">Add</MudButton>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+<MudPaper Class="pa-4 mt-3">
+    <MudText Typo="Typo.h6">Change Customer</MudText>
+    <MudGrid>
+        <MudItem xs="12" md="8">
+            <MudTextField Label="Search by code or name" @bind-Value="_customerSearch" Variant="Variant.Outlined" />
+        </MudItem>
+        <MudItem xs="12" md="4" Class="d-flex align-center">
+            <MudButton Variant="Variant.Outlined" OnClick="SearchCustomersAsync">Search</MudButton>
+        </MudItem>
+    </MudGrid>
+
+    @if (_customerResults.Count > 0)
+    {
+        <MudList T="string" Dense="true">
+            @foreach (var item in _customerResults)
+            {
+                <MudListItem OnClick="@(() => SelectCustomerAsync(item.CustomerCode))">@item.CustomerCode - @item.Name</MudListItem>
+            }
+        </MudList>
+    }
+</MudPaper>
+
+<MudPaper Class="pa-4 mt-3">
+    <MudTable Items="_lines" Dense="true" Hover="true">
+        <HeaderContent>
+            <MudTh>Product</MudTh>
+            <MudTh>Description</MudTh>
+            <MudTh>Unit Price</MudTh>
+            <MudTh>Qty</MudTh>
+            <MudTh>Subtotal</MudTh>
+            <MudTh>Tax</MudTh>
+            <MudTh>Total</MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.ProductCode</MudTd>
+            <MudTd>@context.Description</MudTd>
+            <MudTd>@context.UnitPrice.ToString("0.00")</MudTd>
+            <MudTd>
+                <MudNumericField T="decimal" Value="@context.Quantity" ValueChanged="@(v => UpdateQtyAsync(context.ProductCode, v))" Min="1" Immediate="true" />
+            </MudTd>
+            <MudTd>@context.Subtotal.ToString("0.00")</MudTd>
+            <MudTd>@context.TaxAmount.ToString("0.00")</MudTd>
+            <MudTd>@context.LineTotal.ToString("0.00")</MudTd>
+            <MudTd>
+                <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="@(() => RemoveLine(context.ProductCode))">Remove</MudButton>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+
+    <MudDivider Class="my-2" />
+    <MudText Typo="Typo.subtitle1">Subtotal: @_subtotal.ToString("0.00")</MudText>
+    <MudText Typo="Typo.subtitle1">Tax: @_taxTotal.ToString("0.00")</MudText>
+    <MudText Typo="Typo.h6">Total: @_grandTotal.ToString("0.00")</MudText>
+
+    <MudButton Class="mt-3" Variant="Variant.Filled" Color="Color.Success" OnClick="CompleteSale">Complete Sale</MudButton>
+</MudPaper>
+
+@code {
+    private readonly string _branchCode = "B001";
+    private Branch? _branch;
+    private Customer? _customer;
+    private CustomerType? _customerType;
+    private string _scanCode = string.Empty;
+    private decimal _scanQty = 1;
+    private string _customerSearch = string.Empty;
+    private string _error = string.Empty;
+
+    private decimal _subtotal;
+    private decimal _taxTotal;
+    private decimal _grandTotal;
+
+    private readonly List<Customer> _customerResults = [];
+    private readonly List<SaleLineVm> _lines = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _branch = await BranchRepository.GetAsync(_branchCode);
+        if (_branch is null)
+        {
+            _error = "Branch not found.";
+            return;
+        }
+
+        await SelectCustomerAsync(_branch.CashCustomerCode);
+    }
+
+    private async Task HandleScanKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Enter")
+        {
+            await AddScannedProductAsync();
+        }
+    }
+
+    private async Task AddScannedProductAsync()
+    {
+        _error = string.Empty;
+        if (_branch is null || _customer is null || !_customerType.HasValue)
+        {
+            _error = "Branch or customer context not initialized.";
+            return;
+        }
+
+        var code = _scanCode.Trim();
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            return;
+        }
+
+        var product = await ProductRepository.GetAsync(code);
+        if (product is null)
+        {
+            _error = $"Product {code} was not found.";
+            return;
+        }
+
+        var existing = _lines.FirstOrDefault(x => x.ProductCode.Equals(product.ProductCode, StringComparison.OrdinalIgnoreCase));
+        if (existing is not null)
+        {
+            existing.Quantity += _scanQty;
+            await RepriceLine(existing);
+        }
+        else
+        {
+            var line = new SaleLineVm
+            {
+                ProductCode = product.ProductCode,
+                Description = product.Description,
+                ProductTaxStatus = product.TaxStatus,
+                Quantity = _scanQty
+            };
+            await RepriceLine(line);
+            _lines.Add(line);
+        }
+
+        _scanCode = string.Empty;
+        _scanQty = 1;
+        RecalculateTotals();
+    }
+
+    private async Task UpdateQtyAsync(string productCode, decimal qty)
+    {
+        var line = _lines.FirstOrDefault(x => x.ProductCode == productCode);
+        if (line is null)
+        {
+            return;
+        }
+
+        line.Quantity = qty < 1 ? 1 : qty;
+        await RepriceLine(line);
+        RecalculateTotals();
+    }
+
+    private void RemoveLine(string productCode)
+    {
+        _lines.RemoveAll(x => x.ProductCode == productCode);
+        RecalculateTotals();
+    }
+
+    private async Task SearchCustomersAsync()
+    {
+        var data = await CustomerRepository.SearchAsync(_customerSearch.Trim(), 10);
+        _customerResults.Clear();
+        _customerResults.AddRange(data);
+    }
+
+    private async Task SelectCustomerAsync(string customerCode)
+    {
+        var customer = await CustomerRepository.GetAsync(customerCode);
+        if (customer is null)
+        {
+            _error = $"Customer {customerCode} was not found.";
+            return;
+        }
+
+        var priceGroup = await PriceGroupRepository.GetAsync(customer.PriceGroup);
+        if (priceGroup is null)
+        {
+            _error = $"Price group {customer.PriceGroup} was not found.";
+            return;
+        }
+
+        _customer = customer;
+        _customerType = priceGroup.CustomerType;
+        _customerResults.Clear();
+        _customerSearch = string.Empty;
+
+        await RepriceAllLinesAsync();
+    }
+
+    private async Task RepriceAllLinesAsync()
+    {
+        foreach (var line in _lines)
+        {
+            await RepriceLine(line);
+        }
+
+        RecalculateTotals();
+    }
+
+    private async Task RepriceLine(SaleLineVm line)
+    {
+        if (_branch is null || _customer is null || !_customerType.HasValue)
+        {
+            return;
+        }
+
+        var price = await PricingEngine.PriceAsync(_branch, _customerType.Value, line.ProductCode);
+        line.UnitPrice = price.FinalPrice;
+        line.PriceSource = price.Source;
+        line.Subtotal = Math.Round(line.UnitPrice * line.Quantity, 2, MidpointRounding.AwayFromZero);
+
+        var tax = TaxEngine.Calculate(_branch, _customer.TaxStatus, line.ProductTaxStatus, line.Subtotal);
+        line.TaxAmount = tax.TaxAmount;
+        line.LineTotal = line.Subtotal + line.TaxAmount;
+    }
+
+    private void RecalculateTotals()
+    {
+        _subtotal = _lines.Sum(x => x.Subtotal);
+        _taxTotal = _lines.Sum(x => x.TaxAmount);
+        _grandTotal = _subtotal + _taxTotal;
+    }
+
+    private void CompleteSale()
+    {
+        Snackbar.Add("Complete Sale is a stub in this phase.", Severity.Info);
+    }
+
+    private sealed class SaleLineVm
+    {
+        public string ProductCode { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public TaxStatus ProductTaxStatus { get; set; }
+        public decimal Quantity { get; set; }
+        public decimal UnitPrice { get; set; }
+        public decimal Subtotal { get; set; }
+        public decimal TaxAmount { get; set; }
+        public decimal LineTotal { get; set; }
+        public PriceSource PriceSource { get; set; }
+    }
+}
